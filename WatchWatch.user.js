@@ -255,10 +255,7 @@
         watchInfoModel.addEventListener('reset', $.proxy(function() {
           this._isPastMode = false;
           if (initialized) {
-              beforeShow();
-//            window.setTimeout($.proxy(function() {
-//              this.watch.refresh();
-//            }, this), 500);
+            beforeShow();
           }
         }, this));
 
@@ -300,10 +297,10 @@
         this.timeMachineController = {
           goToPast: function(tm) {
             if (!tm) tm = (new Date()).getTime();
-            if (typeof tm === 'object' && typeof tm.getTime === 'function') tm = tm.getTime();
+            if (typeof tm === 'object' && tm.getTime) tm = tm.getTime();
 
             tm = Math.min(window.WatchApp.ns.util.TimeUtil.now(), tm);
-            var postedAt = new Date(watchInfoModel.postedAt.substring(0, 16).replace(/\//g, '-').split(' '));
+            var postedAt = new Date(watchInfoModel.postedAt.substring(0, 16).replace(/-/g, '/').split(' '));
             console.log('postedAt', postedAt.getTime(), tm);
             // 投稿直後より前は指定できない。マイメモリーやチャンネルだと怪しいかも
             // 投稿日時ぴったりもだめっぽい。 おそらく投稿確定後にスレッドが作られるため。
@@ -367,7 +364,7 @@
           var date;
           if (typeof time === 'number') { date = new Date(time); }
           else
-          if (typeof time === 'object' && typeof time.getTime === 'function') date = time;
+          if (typeof time === 'object' && time.getTime) date = time;
           else
           if (!time) date = new Date();
           console.log('resetInput', time, date);
