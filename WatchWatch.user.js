@@ -3,7 +3,7 @@
 // @namespace   https://github.com/segabito/
 // @description GINZAwatchに時計復活。 ついでに過去ログ時間選択も使いやすくする
 // @include     http://www.nicovideo.jp/watch/*
-// @version     0.1.0
+// @version     0.1.1
 // @grant       none
 // ==/UserScript==
 
@@ -160,6 +160,7 @@
           }
           .timeMachineControl .dateInput {
             text-align: center;
+            width: 150px;
           }
           .timeMachineControl .hourInput:after {
             content: ' : ';
@@ -231,7 +232,7 @@
       initializeTimeMachine: function() {
         var timeMachine         = this._timeMachine;
         var watchInfoModel      = this._watchInfoModel;
-        var playerAreaConnector =  this._playerAreaConnector;
+        var playerAreaConnector = this._playerAreaConnector;
 
         timeMachine.addEventListener('reset', $.proxy(function() {
           this._isPastMode = false;
