@@ -3,7 +3,7 @@
 // @namespace   https://github.com/segabito/
 // @description GINZAwatchに時計復活。 ついでに過去ログ時間選択も使いやすくする
 // @include     http://www.nicovideo.jp/watch/*
-// @version     0.1.1
+// @version     0.1.2
 // @grant       none
 // ==/UserScript==
 
@@ -90,7 +90,7 @@
 
           .watchWatchContainer {
             position: absolute;
-            left: 140px;
+            left: 139px;
             top: 5px;
             -moz-box-sizing: border-box;
             -webkit-box-sizing: border-box;
@@ -496,7 +496,24 @@
       }
     });
 
-    window.WatchWatch.initialize();
+    if (window.PlayerApp) {
+      (function() {
+        var watchInfoModel = WatchApp.ns.model.WatchInfoModel.getInstance();
+        if (watchInfoModel.initialized) {
+          window.WatchWatch.initialize();
+        } else {
+          var onReset = function() {
+            watchInfoModel.removeEventListener('reset', onReset);
+            window.setTimeout(function() {
+              watchInfoModel.removeEventListener('reset', onReset);
+              window.WatchWatch.initialize();
+            }, 0);
+          };
+          watchInfoModel.addEventListener('reset', onReset);
+        }
+      })();
+    }
+
 
   });
 
