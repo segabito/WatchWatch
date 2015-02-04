@@ -3,7 +3,7 @@
 // @namespace   https://github.com/segabito/
 // @description GINZAwatchに時計復活。 ついでに過去ログ時間選択も使いやすくする
 // @include     http://www.nicovideo.jp/watch/*
-// @version     0.1.3
+// @version     0.1.6
 // @grant       none
 // ==/UserScript==
 
@@ -11,7 +11,7 @@
   var monkey = (function() {
     'use strict';
 
-    if (!window.WatchApp || !window.WatchJsApi) {
+    if (!window.WatchJsApi) {
       return;
     }
 
@@ -26,7 +26,42 @@
       console = window.console;
     }
 
-    window.WatchApp.mixin(window.WatchWatch, {
+    var _ = require('lodash');
+    var inherit = require('cjs!inherit');
+    var advice = require('advice');
+    var EventDispatcher = require('watchapp/event/EventDispatcher');
+
+    var TimeMachine = (function() {
+      function TimeMachine(playerInitializer) {
+        EventDispatcher.call(this);
+        this._initialize(playerInitializer);
+      }
+      inherit(TimeMachine, EventDispatcher);
+
+      _.assign(TimeMachine.prototype, {
+        _initialize: function(playerInitializer) {
+          var commentPanelView = this._commentPanelView =
+              playerInitializer.rightSidePanelViewController._playerPanelTabsView._commentPanelView;
+          advice.after(commentPanelView, '_showLogForm', _.bind(function(date) {
+            this.dispatchEvent('timeMachine-changePastMode', true, date);
+          }, this));
+          advice.after(commentPanelView, '_hideLogForm', _.bind(function() {
+            this.dispatchEvent('timeMachine-changePastMode', false);
+          }, this));
+        },
+        goToPast: function(tm) {
+          this._commentPanelView.loadPastComments(tm);
+        },
+        goToPresent: function() {
+          this._commentPanelView.loadPastComments();
+        }
+      });
+
+      return TimeMachine;
+    })();
+
+
+    _.assign(window.WatchWatch, {
       _isPastMode: false,
       _pastTime: (new Date()).getTime(),
       getPastTime: function() {
@@ -37,12 +72,15 @@
         }
       },
       initialize: function() {
-        var nsInit = window.WatchApp.ns.init;
-        this._watchInfoModel      = nsInit.CommonModelInitializer.watchInfoModel;
-        this._playerAreaConnector = nsInit.PlayerInitializer.playerAreaConnector;
-        this._nicoPlayerConnector = nsInit.PlayerInitializer.nicoPlayerConnector;
-        this._timeMachine         = nsInit.PlayerInitializer.commentPanelViewController.timeMachine;
-        this.event                = new window.WatchApp.ns.event.EventDispatcher();
+        var PlayerInitializer = require('watchapp/init/PlayerInitializer');
+        this._watchInfoModel      = require('watchapp/model/WatchInfoModel').getInstance();
+        this._playerAreaConnector = PlayerInitializer.playerAreaConnector;
+        this._nicoPlayerConnector = PlayerInitializer.nicoPlayerConnector;
+        this._timeMachine = new TimeMachine(PlayerInitializer);
+
+        var EventDispatcher = require('watchapp/event/EventDispatcher');
+        this.event                = new EventDispatcher();
+        this.initializeCss();
 
         this.initializeUserConfig();
 
@@ -50,7 +88,6 @@
         this.initializeTimeMachine();
         this.initializeTimer();
 
-        this.initializeCss();
       },
       addStyle: function(styles, id) {
         var elm = document.createElement('style');
@@ -67,23 +104,33 @@
       },
       initializeCss: function() {
         var __css__ = (function() {/*
-          .watchWatch #playerCommentPanel .playerCommentPanelHeader .currentThreadName {
+          .watchWatch #playerCommentPanel .playerCommentPanelHeader .currentThreadName,
+          .watchWatch .select-box.comment-type
+          {
             width: 120px;
           }
 
-          .watchWatch #playerCommentPanel .playerCommentPanelHeader .comment {
+          .watchWatch #playerCommentPanel .playerCommentPanelHeader .comment,
+          .watchWatch .header-icon.comment-log
+          {
             display: none;
           }
 
-          .watchWatch #playerCommentPanel #commentLogHeader form {
+          .watchWatch #playerCommentPanel #commentLogHeader form,
+          .watchWatch .comment-panel .log-form
+          {
             display: none;
           }
 
-          .watchWatch #playerCommentPanel .section #commentLog.commentTable {
+          .watchWatch #playerCommentPanel .section #commentLog.commentTable,
+          .watchWatch .comment-panel.log-form-opened .panel-body
+          {
             top: 28px;
           }
 
-          .watchWatch .commentPanelAlert {
+          .watchWatch .commentPanelAlert,
+          .watchWatch .comment-panel .panel-alert
+          {
             top: 28px;
           }
 
@@ -242,6 +289,7 @@
         timeMachine.addEventListener('error', $.proxy(function() {
           this.event.dispatchEvent('timeMachine.error');
         }, this));
+
         playerAreaConnector.addEventListener('onTimeMachineDateUpdated', $.proxy(function(isPast, time) {
           console.log('dispatch.timeMachine-changePastMode', isPast, time);
           if (isPast) {
@@ -345,7 +393,7 @@
           '</div>',
           '</div>',
           ''].join(''));
-        $('#playerCommentPanel').after($watch).after($popup);
+        $('#playerCommentPanel, #playerTabContainer .comment-panel').after($watch).after($popup);
 
         this._$datepickerContainer = $popup.find('.datepickerContainer');
         this._$dateInput    = $popup.find('.dateInput');
@@ -498,8 +546,8 @@
     });
 
     if (window.PlayerApp) {
-      (function() {
-        var watchInfoModel = WatchApp.ns.model.WatchInfoModel.getInstance();
+      require(['WatchApp'], function() {
+        var watchInfoModel = require('watchapp/model/WatchInfoModel').getInstance();
         if (watchInfoModel.initialized) {
           window.WatchWatch.initialize();
         } else {
@@ -512,7 +560,7 @@
           };
           watchInfoModel.addEventListener('reset', onReset);
         }
-      })();
+      });
     }
 
 
